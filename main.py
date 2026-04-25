@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 import pandas as pd
 
 import AppleDataLogger
+import LinuxDataLogger
 
 if __name__ == "__main__":
 
@@ -67,7 +68,7 @@ if __name__ == "__main__":
     if sys.platform == "darwin":
         sampler = AppleDataLogger.Sampler()
     elif sys.platform == "linux":
-        sampler = None
+        sampler = LinuxDataLogger.Sampler()
     else:
         print("Unable to run, no configurations exist for windows. Use linux or MacOS")
         exit(1)

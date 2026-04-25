@@ -37,7 +37,10 @@ class Sampler:
         self.power = {}
 
     def _analysis_loop(self):
-        pass
+        while not self._stop_event.is_set():
+            now = time.time()
+            self.get_cpu_stats(now)
+            self.get_gpu_stats(now)
 
     def get_gpu_stats(self, fetch_time):
         result = subprocess.run([
