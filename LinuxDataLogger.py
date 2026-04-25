@@ -99,7 +99,7 @@ class Sampler:
     def average_interval(self, start: time, end: time) -> dict:
         # CPU Utilization
         cpu_utilization_copy = self.cpu_utilization.copy()
-        reduced_cpu_utilization = {read_time: cpu_data for read_time, cpu_data in cpu_utilization_copy if
+        reduced_cpu_utilization = {read_time: cpu_data for read_time, cpu_data in cpu_utilization_copy.items() if
                                    start <= read_time <= end}
         # variables for calculating average
         count = 0
@@ -117,7 +117,7 @@ class Sampler:
 
         # CPU Clock
         copy_cpu_clock = self.cpu_clock.copy()
-        reduced_cpu_clock = {read_time: cpu_data for read_time, cpu_data in copy_cpu_clock if
+        reduced_cpu_clock = {read_time: cpu_data for read_time, cpu_data in copy_cpu_clock.items() if
                              start <= read_time <= end}
         average_cpu_clock = {}
 
@@ -133,8 +133,8 @@ class Sampler:
 
         # Average Power
         copy_power = self.power.copy()
-        reduced_cpu_power = [value["CPU"] for read_time, value in copy_power if start <= read_time <= end]
-        reduced_gpu_power = [value["GPU"] for read_time, value in copy_power if start <= read_time <= end]
+        reduced_cpu_power = [value["CPU"] for read_time, value in copy_power.items() if start <= read_time <= end]
+        reduced_gpu_power = [value["GPU"] for read_time, value in copy_power.items() if start <= read_time <= end]
         try:
             average_cpu_power = sum(reduced_cpu_power) / len(reduced_cpu_power)
             average_gpu_power = sum(reduced_gpu_power) / len(reduced_gpu_power)
@@ -144,12 +144,13 @@ class Sampler:
 
         # Average GPU utilization
         copy_gpu_utilization = self.gpu_utilization.copy()
-        reduced_gpu_utilization = [value for read_time, value in copy_gpu_utilization if
+        reduced_gpu_utilization = [value for read_time, value in copy_gpu_utilization.items() if
                                    start <= read_time <= end]
         average_gpu_utilization = sum(reduced_gpu_utilization) / len(reduced_gpu_utilization)
 
         # Average GPU Clock
-        reduced_gpu_frequency = [value for read_time, value in self.gpu_frequency.items() if
+        copy_gpu_frequency = self.gpu_frequency.copy()
+        reduced_gpu_frequency = [value for read_time, value in copy_gpu_frequency.items() if
                                  start <= read_time <= end]
         average_gpu_frequency = sum(reduced_gpu_frequency) / len(reduced_gpu_frequency)
 
