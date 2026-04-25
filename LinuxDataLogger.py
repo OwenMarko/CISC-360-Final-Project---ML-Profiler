@@ -1,3 +1,4 @@
+import os
 import re
 import subprocess
 import threading
@@ -38,7 +39,7 @@ class Sampler:
     def _analysis_loop(self):
         pass
 
-    def get_gpu_stats(self):
+    def get_gpu_stats(self, fetch_time):
         result = subprocess.run([
             "nvidia-smi",
             "--query-gpu=utilization.gpu,power.draw,clocks.sm",
@@ -47,7 +48,49 @@ class Sampler:
             capture_output=True, text=True
         )
         gpu_utilization, gpu_power, gpu_frequency = result.stdout.split(", ")
-        return float(gpu_utilization), float(gpu_power), float(gpu_frequency)
+
+        self.gpu_utilization[fetch_time] = float(gpu_utilization)
+        self.gpu_frequency[fetch_time] = float(gpu_frequency)
+        self.power[fetch_time]["GPU"] = float(gpu_power)
+
+    def get_cpu_stats(self, fetch_time):
+        result = subprocess.run([
+            "sudo", "-S",
+            "turbostat",
+            "--num_iterations=1",
+            "-i=0.1"
+        ],
+            input=f"{os.getenv('SUDO_PASSWORD')}\n",
+            capture_output=True, text=True
+        )
+
+        # split up the data
+        lines = result.stdout.strip().split("\n")
+
+        # get the data rows
+        headers = lines[0].split()
+
+        # get the overall power consumption
+        parts = lines[1].split()
+        row = dict(zip(headers, parts))
+        power = float(row["PkgWatt"])
+
+        util_data = {}
+        frequency_data = {}
+
+        # Iterate through each data row
+        for line in lines[2:]:
+            parts = line.split()
+
+            cpu_id = int(parts[1])
+            row = dict(zip(headers, parts))
+
+            util_data[cpu_id] = float(row["Busy%"])
+            frequency_data[cpu_id] = float(row["Avg_MHz"])
+
+        self.cpu_utilization[fetch_time] = util_data
+        self.cpu_clock[fetch_time] = frequency_data
+        self.power[fetch_time] = {"CPU": power}
 
     # get the average metrics over a time interval
     def average_interval(self, start: time, end: time) -> dict:
