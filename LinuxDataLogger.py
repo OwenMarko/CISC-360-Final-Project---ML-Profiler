@@ -4,6 +4,7 @@ import threading
 import time
 
 class Sampler:
+    #
     def __init__(self):
         # sample arrays
         self.cpu_utilization = {}
