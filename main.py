@@ -1,3 +1,4 @@
+import sys
 import time
 
 import torch.nn as nn
@@ -7,7 +8,7 @@ from torchvision import transforms, datasets
 from torch.utils.data import DataLoader
 import pandas as pd
 
-import datalogger
+import AppleDataLogger
 
 if __name__ == "__main__":
 
@@ -63,7 +64,14 @@ if __name__ == "__main__":
     cpu_clock_df = None
     scalar_df = pd.DataFrame(columns=["cpu-power", "gpu-power", "gpu-utilization", "gpu-frequency", "time"])
 
-    sampler = datalogger.Sampler()
+    if sys.platform == "darwin":
+        sampler = AppleDataLogger.Sampler()
+    elif sys.platform == "linux":
+        sampler = None
+    else:
+        print("Unable to run, no configurations exist for windows. Use linux or MacOS")
+        exit(1)
+
     sampler.start()
 
     # iterate training

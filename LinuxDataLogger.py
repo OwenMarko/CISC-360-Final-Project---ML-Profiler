@@ -3,7 +3,6 @@ import subprocess
 import threading
 import time
 
-
 class Sampler:
     def __init__(self):
         # sample arrays
@@ -35,46 +34,19 @@ class Sampler:
         self.cpu_clock = {}
         self.power = {}
 
-    # parse the data
-    def _parse_data(self, data: str, fetch_time: time):
-        # Parse the CPU utilization and clock rate
-        pattern = "CPU [0-9]+ frequency: ([0-9]+)|CPU [0-9]+ active residency: +([0-9]+\.[0-9]+)"
-        raw_cpu = re.findall(pattern, data)
-
-        temp_utilization = {}
-        temp_clock = {}
-
-        # parse each match
-        for i in range(0, len(raw_cpu), 2):
-            cpu = i // 2
-            temp_utilization[cpu] = float(raw_cpu[i + 1][1])
-            temp_clock[cpu] = int(raw_cpu[i][0])
-
-        self.cpu_utilization[fetch_time] = temp_utilization
-        self.cpu_clock[fetch_time] = temp_clock
-
-        # Parse the power
-        pattern = "(CPU|GPU) Power: ([0-9]+)"
-        raw_power = re.findall(pattern, data)
-
-        self.power[fetch_time] = {"CPU": int(raw_power[0][1]), "GPU": int(raw_power[1][1])}
-
-        # Parse the GPU
-        pattern = "GPU HW active frequency: ([0-9]+)|GPU HW active residency: +([0-9]+.[0-9]+)"
-        raw_gpu = re.findall(pattern, data)
-
-        self.gpu_frequency[fetch_time] = int(raw_gpu[0][0])
-        self.gpu_utilization[fetch_time] = float(raw_gpu[1][1])
-
-    # Continue to capture the data
     def _analysis_loop(self):
-        while not self._stop_event.is_set():
-            result = subprocess.run(
-                ["sudo", "-S", "powermetrics", "--samplers", "gpu_power,cpu_power", "-n", "1", "-i", "50"],
-                input="REMOVED\n",
-                capture_output=True, text=True, timeout=2
-                )
-            self._parse_data(result.stdout, time.time())
+        pass
+
+    def get_gpu_stats(self):
+        result = subprocess.run([
+            "nvidia-smi",
+            "--query-gpu=utilization.gpu,power.draw,clocks.sm",
+            "--format=csv,noheader,nounits"
+        ],
+            capture_output=True, text=True
+        )
+        gpu_utilization, gpu_power, gpu_frequency = result.stdout.split(", ")
+        return float(gpu_utilization), float(gpu_power), float(gpu_frequency)
 
     # get the average metrics over a time interval
     def average_interval(self, start: time, end: time) -> dict:
@@ -93,7 +65,7 @@ class Sampler:
                 if key not in average_cpu_utilization.keys():
                     average_cpu_utilization[key] = value
                 else:
-                    average_cpu_utilization[key] = (average_cpu_utilization[key] * (count - 1) + value)/count
+                    average_cpu_utilization[key] = (average_cpu_utilization[key] * (count - 1) + value) / count
 
         # CPU Clock
         reduced_cpu_clock = {read_time: cpu_data for read_time, cpu_data in self.cpu_clock.items() if
@@ -114,19 +86,20 @@ class Sampler:
         reduced_cpu_power = [value["CPU"] for read_time, value in self.power.items() if start <= read_time <= end]
         reduced_gpu_power = [value["GPU"] for read_time, value in self.power.items() if start <= read_time <= end]
         try:
-            average_cpu_power = sum(reduced_cpu_power)/len(reduced_cpu_power)
-            average_gpu_power = sum(reduced_gpu_power)/len(reduced_gpu_power)
+            average_cpu_power = sum(reduced_cpu_power) / len(reduced_cpu_power)
+            average_gpu_power = sum(reduced_gpu_power) / len(reduced_gpu_power)
         except ZeroDivisionError:
             print("No values for this interval")
             return
 
         # Average GPU utilization
-        reduced_gpu_utilization = [value for read_time, value in self.gpu_utilization.items() if start <= read_time <= end]
-        average_gpu_utilization = sum(reduced_gpu_utilization)/len(reduced_gpu_utilization)
+        reduced_gpu_utilization = [value for read_time, value in self.gpu_utilization.items() if
+                                   start <= read_time <= end]
+        average_gpu_utilization = sum(reduced_gpu_utilization) / len(reduced_gpu_utilization)
 
         # Average GPU Clock
         reduced_gpu_frequency = [value for read_time, value in self.gpu_frequency.items() if
-                                   start <= read_time <= end]
+                                 start <= read_time <= end]
         average_gpu_frequency = sum(reduced_gpu_frequency) / len(reduced_gpu_frequency)
 
         return {
